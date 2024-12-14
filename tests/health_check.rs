@@ -1,7 +1,7 @@
 use cloudcafe::configuration::DatabaseSettings;
-use sqlx::{Connection, PgConnection, PgPool, Executor};
-use uuid::Uuid;
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn health_check_works() {
@@ -91,12 +91,14 @@ async fn spawn_app() -> TestApp {
     let port = listener.local_addr().unwrap().port();
     let address = format!("http://127.0.0.1:{}", port);
 
-    let mut configuration = cloudcafe::configuration::get_configuration().expect("Failed to read configuration.");
+    let mut configuration =
+        cloudcafe::configuration::get_configuration().expect("Failed to read configuration.");
     configuration.database.database_name = Uuid::new_v4().to_string();
 
     let connection_pool = configure_database(&configuration.database).await;
 
-    let server = cloudcafe::startup::run(listener, connection_pool.clone()).expect("Failed to bind address");
+    let server =
+        cloudcafe::startup::run(listener, connection_pool.clone()).expect("Failed to bind address");
     let _ = tokio::spawn(server);
 
     TestApp {
@@ -110,7 +112,8 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to connect to Postgres.");
 
-    connection.execute(&*format!(r#"CREATE DATABASE "{}";"#, config.database_name))
+    connection
+        .execute(&*format!(r#"CREATE DATABASE "{}";"#, config.database_name))
         .await
         .expect("Failed to create database.");
 

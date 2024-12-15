@@ -1,6 +1,7 @@
 use std::net::TcpListener;
 
 use cloudcafe::{configuration::get_configuration, startup::run, telemetry::{get_subscriber, init_subscriber}};
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 
 #[tokio::main]
@@ -9,7 +10,7 @@ async fn main() -> Result<(), std::io::Error> {
     init_subscriber(subscriber);
 
     let configuration = get_configuration().expect("Failed to read configuration.");
-    let connection_pool = PgPool::connect(&configuration.database.connection_string())
+    let connection_pool = PgPool::connect(&configuration.database.connection_string().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
 

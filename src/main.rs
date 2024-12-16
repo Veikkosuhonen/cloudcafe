@@ -9,7 +9,7 @@ async fn main() -> Result<(), std::io::Error> {
     init_subscriber(subscriber);
 
     let configuration = get_configuration().expect("Failed to read configuration.");
-    let connection_pool = PgPool::connect_lazy_with(configuration.database.with_db());
+    let connection_pool = PgPool::connect_lazy_with(configuration.database.get_connect_options());
 
     let address = format!("{}:{}", configuration.application.host, configuration.application.port);
     let listener = TcpListener::bind(address).expect("Failed to bind to address");

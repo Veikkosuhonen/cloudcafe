@@ -1,5 +1,5 @@
-use cloudcafe::{configuration::DatabaseSettings, telemetry::{get_subscriber, init_subscriber}};
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use cloudcafe::telemetry::{get_subscriber, init_subscriber};
+use sqlx::{postgres::PgConnectOptions, Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
 
@@ -108,11 +108,12 @@ async fn spawn_app() -> TestApp {
     let port = listener.local_addr().unwrap().port();
     let address = format!("http://127.0.0.1:{}", port);
 
-    let mut configuration =
+    let configuration =
         cloudcafe::configuration::get_configuration().expect("Failed to read configuration.");
-    configuration.database.database_name = Uuid::new_v4().to_string();
+    let connect_options = configuration.database.get_connect_options();
+    let connect_options = connect_options.database(&Uuid::new_v4().to_string());
 
-    let connection_pool = configure_database(&configuration.database).await;
+    let connection_pool = configure_database(connect_options).await;
 
     let server =
         cloudcafe::startup::run(listener, connection_pool.clone()).expect("Failed to bind address");
@@ -124,17 +125,20 @@ async fn spawn_app() -> TestApp {
     }
 }
 
-async fn configure_database(config: &DatabaseSettings) -> PgPool {
-    let mut connection = PgConnection::connect_with(&config.without_db())
+async fn configure_database(connect_options: PgConnectOptions) -> PgPool {
+    let admin_connect_options = connect_options.clone().database("postgres");
+
+    let mut connection = PgConnection::connect_with(&admin_connect_options)
         .await
         .expect("Failed to connect to Postgres.");
 
+    let app_database_name = connect_options.get_database().expect("Failed to get database name.");
     connection
-        .execute(&*format!(r#"CREATE DATABASE "{}";"#, config.database_name))
+        .execute(&*format!(r#"CREATE DATABASE "{}";"#, app_database_name))
         .await
         .expect("Failed to create database.");
 
-    let connection_pool = PgPool::connect_with(config.with_db())
+    let connection_pool = PgPool::connect_with(connect_options)
         .await
         .expect("Failed to connect to test database");
 

@@ -18,35 +18,23 @@ pub struct ApplicationSettings {
 
 #[derive(serde::Deserialize)]
 pub struct DatabaseSettings {
-    pub username: String,
-    pub password: Secret<String>,
-    pub host: String,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
-    pub port: u16,
-    pub database_name: String,
+    pub url: Secret<String>,
     pub require_ssl: bool,
 }
 
 impl DatabaseSettings {
-    pub fn with_db(&self) -> PgConnectOptions {
-        self.without_db()
-            .database(&self.database_name)
-            .log_statements(tracing_log::log::LevelFilter::Trace)
-    }
-
-    pub fn without_db(&self) -> PgConnectOptions {
+    pub fn get_connect_options(&self) -> PgConnectOptions {
         let ssl_mode = if self.require_ssl {
             PgSslMode::Require
         } else {
             PgSslMode::Prefer
         };
-
-        PgConnectOptions::new()
-            .username(&self.username)
-            .password(self.password.expose_secret())
-            .host(&self.host)
-            .port(self.port)
+        
+        let url = self.url.expose_secret().parse().expect("Invalid database URL.");
+        PgConnectOptions::from_url(&url)
+            .expect("Failed to parse database URL into ConnectOptions.")
             .ssl_mode(ssl_mode)
+            .log_statements(tracing_log::log::LevelFilter::Trace)
     }
 }
 
@@ -98,7 +86,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .add_source(config::File::from(
             configuration_directory.join(environment_filename)
         ))
-        .add_source(config::Environment::default())
+        .add_source(config::Environment::default().separator("_"))
         .build()?;
 
     settings.try_deserialize::<Settings>()

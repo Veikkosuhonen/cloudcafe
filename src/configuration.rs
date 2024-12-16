@@ -1,6 +1,6 @@
 use secrecy::{ExposeSecret, Secret};
 use serde_aux::field_attributes::deserialize_number_from_string;
-use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use sqlx::postgres::PgConnectOptions;
 use sqlx::ConnectOptions;
 
 #[derive(serde::Deserialize)]
@@ -24,17 +24,20 @@ pub struct DatabaseSettings {
 
 impl DatabaseSettings {
     pub fn get_connect_options(&self) -> PgConnectOptions {
-        let ssl_mode = if self.require_ssl {
+        // We actually do not want SSL in Fly
+        /*let ssl_mode = if self.require_ssl {
             PgSslMode::Require
         } else {
             PgSslMode::Prefer
-        };
+        };*/
         
         let url = self.url.expose_secret().parse().expect("Invalid database URL.");
-        PgConnectOptions::from_url(&url)
+        let opts = PgConnectOptions::from_url(&url)
             .expect("Failed to parse database URL into ConnectOptions.")
-            .ssl_mode(ssl_mode)
-            .log_statements(tracing_log::log::LevelFilter::Trace)
+            //.ssl_mode(ssl_mode)
+            .log_statements(tracing_log::log::LevelFilter::Trace);
+
+        opts
     }
 }
 

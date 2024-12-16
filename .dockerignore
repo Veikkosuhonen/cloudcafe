@@ -1,0 +1,7 @@
+fly.toml
+.git/
+.env
+target/
+tests/
+Dockerfile
+scripts/
